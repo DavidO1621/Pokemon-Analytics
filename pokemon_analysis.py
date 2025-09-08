@@ -141,8 +141,12 @@ def categorize_role(stats):
     sp_defense = stats['special-defense']
     speed = stats['speed']
     hp = stats['hp']
-
-    if 
+    
+    if attack + speed or sp_attack + speed> 250:
+        return('sweeper')
+    elif defense +sp_defense >250:
+        return('tank')
+    
 #this should analyze the team's covered areas like weaknesses, strenghts, resistances. 
 # it should also keep a tally of certain groups to see not so many pokemon have overlapping types
 
@@ -162,7 +166,6 @@ def team_analyzer(team):
         team_info['overall_types'].extend(data1)
         team_info['shared_weaknesses'].extend(data2)
         team_info['shared_resistances'].extend(data3)
-        print(team[pokemon]['Stats'])
         team_info['roles'][pokemon]= categorize_role(team[pokemon]['Stats'])
 
 
