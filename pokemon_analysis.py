@@ -135,17 +135,18 @@ def team_builder(team):
     return(pokemon_team)
 
 def categorize_role(stats):
-    attack = stats['attack']
-    sp_attack = stats['special-attack']
-    defense = stats['defense']
-    sp_defense = stats['special-defense']
-    speed = stats['speed']
-    hp = stats['hp']
-    
-    if attack + speed or sp_attack + speed> 250:
-        return('sweeper')
-    elif defense +sp_defense >250:
-        return('tank')
+    bank ={}
+    bank['Physical_Sweeper']= stats['attack']*1.2 + stats['speed']
+    bank['Special_Sweeper']= stats['speed'] + stats['special-attack']*1.2
+    bank['Tank']= (stats['defense'] + stats['special-defense'] + stats['attack'] + stats['special-attack'])*0.5
+    bank['Wall']= (stats['defense'] + stats['special-defense'] + stats['hp'])*(2/3)
+    print(bank)
+    max_item = max(bank.items(), key = lambda x:x[1])
+
+    if max_item[1] < 150:
+        return('Support', max_item[1])
+    return(max_item)
+
     
 #this should analyze the team's covered areas like weaknesses, strenghts, resistances. 
 # it should also keep a tally of certain groups to see not so many pokemon have overlapping types
@@ -166,6 +167,7 @@ def team_analyzer(team):
         team_info['overall_types'].extend(data1)
         team_info['shared_weaknesses'].extend(data2)
         team_info['shared_resistances'].extend(data3)
+        #print(team[pokemon]['Stats'])
         team_info['roles'][pokemon]= categorize_role(team[pokemon]['Stats'])
 
 
@@ -190,7 +192,7 @@ if __name__ == "__main__":
     #print(type_analysis('haunter'))
 
     #print(type_calculator('blastoise'))
-    my_team = team_builder(['blastoise', 'mew','charizard','moltres','zapdos','mewtwo'])
+    my_team = team_builder(['blastoise', 'snorlax','charizard','blissey','zapdos','mewtwo'])
     team_stats = team_analyzer(my_team)
 #def main():
 '''
