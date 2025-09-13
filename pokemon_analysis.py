@@ -7,9 +7,20 @@ type_cache ={}
 #pokemon info
 pokemon_api_base = 'https://pokeapi.co/api/v2/pokemon/'
 type_api_url ='https://pokeapi.co/api/v2/type/'
+def get_gen_pokemon(gen_num):
+    gen_url = f"https://pokeapi.co/api/v2/generation/{gen_num}/"
+    response = requests.get(gen_url)
+
+    if response.ok:
+        data = response.json()
+        pokemon_names = [p['name'] for p in data['pokemon_species']]
+        return(pokemon_names)
+    else:
+        print(f'Please choose a proper generation.')
+        return[]
     
 
-
+'''
 def pokemon_api(pokemon_name):
     name = pokemon_name.lower()
     if name in pokemon_cache: #checks to see if the pokemon isnt already listed, if so just return w/o running api
@@ -177,12 +188,13 @@ def team_analyzer(team):
     team_info['shared_resistances'] = Counter(team_info['shared_resistances'])
 
     '''
+    '''comment under
     for type in team_info['overall_types']:
         if type not in team_info['shared_types']:
             team_info['shared_types'][type]= 1
         else:
             team_info['shared_types'][type] +=1
-    '''
+    ''''''
     team_info['overall_types']= set(team_info['overall_types'])
     #team_info['shared_types']= set(team_info['shared_types'])
     team_info['shared_weaknesses']= set(team_info['shared_weaknesses'])
@@ -195,6 +207,7 @@ if __name__ == "__main__":
     my_team = team_builder(['blastoise', 'snorlax','charizard','blissey','zapdos','mewtwo'])
     team_stats = team_analyzer(my_team)
 #def main():
+''' 
 '''
 def team_analyzer(team):
     all_types = get_all_types(team)
@@ -207,6 +220,4 @@ def get_all_types(team):
     overall_types = []
     for pokemon in team:
         overall_types.extend(team[pokemon]['Types'])
-    return set(overall_types)
-
-'''
+    return set(overall_types) '''
