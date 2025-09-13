@@ -10,7 +10,7 @@ type_api_url ='https://pokeapi.co/api/v2/type/'
 def get_gen_pokemon(gen_num):
     gen_url = f"https://pokeapi.co/api/v2/generation/{gen_num}/"
     response = requests.get(gen_url)
-
+jjfj
     if response.ok:
         data = response.json()
         pokemon_names = [p['name'] for p in data['pokemon_species']]
