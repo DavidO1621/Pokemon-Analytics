@@ -2,25 +2,17 @@
 import requests
 import argparse
 from collections import Counter
+import asyncio
+import aiohttp
+
 pokemon_cache ={}
 type_cache ={}
 #pokemon info
 pokemon_api_base = 'https://pokeapi.co/api/v2/pokemon/'
 type_api_url ='https://pokeapi.co/api/v2/type/'
-def get_gen_pokemon(gen_num):
-    gen_url = f"https://pokeapi.co/api/v2/generation/{gen_num}/"
-    response = requests.get(gen_url)
-
-    if response.ok:
-        data = response.json()
-        pokemon_names = [p['name'] for p in data['pokemon_species']]
-        return(pokemon_names)
-    else:
-        print(f'Please choose a proper generation.')
-        return[]
     
+#okay so lets 
 
-'''
 def pokemon_api(pokemon_name):
     name = pokemon_name.lower()
     if name in pokemon_cache: #checks to see if the pokemon isnt already listed, if so just return w/o running api
@@ -151,7 +143,6 @@ def categorize_role(stats):
     bank['Special_Sweeper']= stats['speed'] + stats['special-attack']*1.2
     bank['Tank']= (stats['defense'] + stats['special-defense'] + stats['attack'] + stats['special-attack'])*0.5
     bank['Wall']= (stats['defense'] + stats['special-defense'] + stats['hp'])*(2/3)
-    print(bank)
     max_item = max(bank.items(), key = lambda x:x[1])
 
     if max_item[1] < 150:
@@ -187,27 +178,69 @@ def team_analyzer(team):
     team_info['shared_weaknesses'] = Counter(team_info['shared_weaknesses'])
     team_info['shared_resistances'] = Counter(team_info['shared_resistances'])
 
-    '''
-    '''comment under
-    for type in team_info['overall_types']:
-        if type not in team_info['shared_types']:
-            team_info['shared_types'][type]= 1
-        else:
-            team_info['shared_types'][type] +=1
-    ''''''
-    team_info['overall_types']= set(team_info['overall_types'])
-    #team_info['shared_types']= set(team_info['shared_types'])
-    team_info['shared_weaknesses']= set(team_info['shared_weaknesses'])
+    team_info['overall_types']= list(set(team_info['overall_types']))
     print(team_info)
-if __name__ == "__main__":
-    #print(pokemon_api('heracross'))
-    #print(type_analysis('haunter'))
 
-    #print(type_calculator('blastoise'))
+async def get_all_pokemon_data(pokemon_names):
+    async with aiohttp.ClientSession() as session:
+        #lets break the list of pokemon names we get and feed it intot the other function one at a time
+        tasks = [get_pokemon_stats(session, name) for name in poke_names]
+
+        pokemon_data_list = await asyncio.gather(*tasks)
+        return(pokemon_data_list)
+    
+
+async def get_pokemon_stats(session,pokemon_name):
+    url = f'https://pokeapi.co/api/v2/pokemon/{pokemon_name.lower()}'
+    try:
+        async with session.get(url) as response:
+            data = await response.json()
+            stats = {stat['stat']['name']: stat['base_stat'] for stat in data['stats']}
+            return{
+                'name':data['name'],
+                'stats':stats
+            }
+
+
+    except aiohttp.ClientError as e:
+        print(f'Error! Something went wrong retrieving {pokemon_name}: {e}')
+    return None
+    
+def generation_pokemon(gen_num):
+    gen_dict={
+        1:'151',
+        2:'251',
+        3:'386',
+        4:'493',
+        5:'649',
+        6:'721',
+        7:'809',
+        8:'905',
+        9:'1025'
+    }
+    gen_url =f'https://pokeapi.co/api/v2/pokemon?limit={gen_dict[gen_num]}'
+    response =requests.get(gen_url)
+    if response.ok:
+        data = response.json()
+        pokemon_names = [p['name'] for p in data['results']]
+        return(pokemon_names)
+        
+    else:
+        print(f'Error! Please provide a proper generation!')
+        return[]
+        
+if __name__ == "__main__":
+
+    gen_number = int(input(f'Enter the generation you want to analyze (1-9): '))
+    #team = input('Please enter your team! (Teams of 6 or less): ')
+    poke_names =generation_pokemon(gen_number)
+    all_stats = asyncio.run(get_all_pokemon_data(poke_names))
+    print(all_stats)
+    '''
     my_team = team_builder(['blastoise', 'snorlax','charizard','blissey','zapdos','mewtwo'])
     team_stats = team_analyzer(my_team)
-#def main():
-''' 
+    '''
+
 '''
 def team_analyzer(team):
     all_types = get_all_types(team)
@@ -220,4 +253,5 @@ def get_all_types(team):
     overall_types = []
     for pokemon in team:
         overall_types.extend(team[pokemon]['Types'])
-    return set(overall_types) '''
+    return set(overall_types) 
+    '''
