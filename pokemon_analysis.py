@@ -4,7 +4,7 @@ import argparse
 from collections import Counter
 import asyncio
 import aiohttp
-
+import pandas as pd
 pokemon_cache ={}
 type_cache ={}
 #pokemon info
@@ -112,6 +112,7 @@ def type_calculator(pokemon):
     #print(data)
     
     #we have weakness, immunities, resistances
+    
     return(poke_data)
         
 #accepts input from user
@@ -201,7 +202,6 @@ async def get_pokemon_stats(session,pokemon_name):
                 'stats':stats
             }
 
-
     except aiohttp.ClientError as e:
         print(f'Error! Something went wrong retrieving {pokemon_name}: {e}')
     return None
@@ -229,29 +229,27 @@ def generation_pokemon(gen_num):
         print(f'Error! Please provide a proper generation!')
         return[]
         
+def data_builder(data):
+    #this  is where we will be dumping the pokemon's data and itll slowly create the data population
+    stat_categories= ['hp','attack','special-attack','defense','special-defense','speed']
+    data_pop={cat: [] for cat in stat_categories}
+    for i in range(len(data)):
+        for cat_name in stat_categories:
+            data_pop[cat_name].append(data[i]['stats'][cat_name])
+    pop_df = pd.DataFrame(data_pop)    
+    return(pop_df.describe())
+
+#def population info
 if __name__ == "__main__":
 
     gen_number = int(input(f'Enter the generation you want to analyze (1-9): '))
     #team = input('Please enter your team! (Teams of 6 or less): ')
     poke_names =generation_pokemon(gen_number)
     all_stats = asyncio.run(get_all_pokemon_data(poke_names))
-    print(all_stats)
-    '''
+    results = data_builder(all_stats)
+    print(results)
+
+    
     my_team = team_builder(['blastoise', 'snorlax','charizard','blissey','zapdos','mewtwo'])
     team_stats = team_analyzer(my_team)
-    '''
-
-'''
-def team_analyzer(team):
-    all_types = get_all_types(team)
-    shared_types = find_shared_items(team, 'Types')
-    # and so on...
     
-    return {'overall_types': all_types, 'shared_types': shared_types}
-
-def get_all_types(team):
-    overall_types = []
-    for pokemon in team:
-        overall_types.extend(team[pokemon]['Types'])
-    return set(overall_types) 
-    '''
