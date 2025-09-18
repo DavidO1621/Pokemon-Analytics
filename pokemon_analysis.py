@@ -5,6 +5,8 @@ from collections import Counter
 import asyncio
 import aiohttp
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 pokemon_cache ={}
 type_cache ={}
 #pokemon info
@@ -180,7 +182,7 @@ def team_analyzer(team):
     team_info['shared_resistances'] = Counter(team_info['shared_resistances'])
 
     team_info['overall_types']= list(set(team_info['overall_types']))
-    print(team_info)
+    return(team_info)
 
 async def get_all_pokemon_data(pokemon_names):
     async with aiohttp.ClientSession() as session:
@@ -237,19 +239,49 @@ def data_builder(data):
         for cat_name in stat_categories:
             data_pop[cat_name].append(data[i]['stats'][cat_name])
     pop_df = pd.DataFrame(data_pop)    
-    return(pop_df.describe())
+    return(pop_df)
 
-#def population info
+def create_stat_graph(data,poke_name, poke_stat):
+    categories = list(data.columns.values)
+    graph_list =[]
+    for stats in categories:
+        stat_mean = round(data[stats].mean(),2)
+        stat_std = round(data[stats].std(),2)
+
+        fig, ax = plt.subplots()
+        sns.histplot(data = data, x= stats, kde = True)
+
+        plt.axvline(stat_mean + stat_std, color ='black', linestyle ='--', label= f'+1σ: {stat_mean + stat_std}')
+        plt.axvline(stat_mean- stat_std, color ='black', linestyle ='--', label = f'-1σ: {stat_mean - stat_std}')
+         #lets acces the pokemon's stats so we can place them into the graph
+        pokemon_selected_stat = poke_stat[stats]
+        plt.axvline(pokemon_selected_stat, color='red', linestyle='-', linewidth =2, label= f"{poke_name}: {pokemon_selected_stat} ")
+        plt.title(f'Pokemon {stats} Stat Distribution')
+        plt.xlabel(f'Base {stats} Stat')
+        plt.ylabel(f'Frequency')
+        plt.legend()
+        plt.tight_layout()
+        graph_list.append(fig)
+    return(data.describe())
 if __name__ == "__main__":
+
+
+
+    
+    my_team = team_builder(['blastoise', 'snorlax','charizard','blissey','zapdos','mewtwo'])
+    team_stats = team_analyzer(my_team)
+    print(my_team)
 
     gen_number = int(input(f'Enter the generation you want to analyze (1-9): '))
     #team = input('Please enter your team! (Teams of 6 or less): ')
     poke_names =generation_pokemon(gen_number)
     all_stats = asyncio.run(get_all_pokemon_data(poke_names))
     results = data_builder(all_stats)
-    print(results)
-
-    
-    my_team = team_builder(['blastoise', 'snorlax','charizard','blissey','zapdos','mewtwo'])
-    team_stats = team_analyzer(my_team)
+    #print(results)
+    for pokemon_name, pokemon_stat in my_team.items():
+        print(pokemon_name)
+        print(pokemon_stat['Stats'])
+        all_poke_graphs =create_stat_graph(results,pokemon_name, pokemon_stat['Stats'])
+        for graph_fog in all_poke_graphs:
+            plt.show()
     
