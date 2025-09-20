@@ -7,6 +7,11 @@ import aiohttp
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from dash import Dash
+import dash_core_components as dcc
+import dash_html_components as html
+from dash.dependencies import Input, Output
+
 pokemon_cache ={}
 type_cache ={}
 #pokemon info
@@ -249,20 +254,24 @@ def create_stat_graph(data,poke_name, poke_stat):
         stat_std = round(data[stats].std(),2)
 
         fig, ax = plt.subplots()
-        sns.histplot(data = data, x= stats, kde = True)
+        sns.histplot(data = data, x= stats, kde = True, color = 'grey')
 
         plt.axvline(stat_mean + stat_std, color ='black', linestyle ='--', label= f'+1σ: {stat_mean + stat_std}')
         plt.axvline(stat_mean- stat_std, color ='black', linestyle ='--', label = f'-1σ: {stat_mean - stat_std}')
+        plt.axvline(stat_mean,color ='green', linestyle='-', label =f'Center (mean): {stat_mean}' )
          #lets acces the pokemon's stats so we can place them into the graph
         pokemon_selected_stat = poke_stat[stats]
-        plt.axvline(pokemon_selected_stat, color='red', linestyle='-', linewidth =2, label= f"{poke_name}: {pokemon_selected_stat} ")
-        plt.title(f'Pokemon {stats} Stat Distribution')
+        plt.axvline(pokemon_selected_stat, color='blue', linestyle='-', linewidth =2, label= f"{poke_name}: {pokemon_selected_stat} ")
+        plt.title(f"{poke_name}'s {stats} Stat Distribution")
         plt.xlabel(f'Base {stats} Stat')
         plt.ylabel(f'Frequency')
         plt.legend()
         plt.tight_layout()
         graph_list.append(fig)
     return(data.describe())
+
+
+
 if __name__ == "__main__":
 
 
@@ -270,7 +279,7 @@ if __name__ == "__main__":
     
     my_team = team_builder(['blastoise', 'snorlax','charizard','blissey','zapdos','mewtwo'])
     team_stats = team_analyzer(my_team)
-    print(my_team)
+    
 
     gen_number = int(input(f'Enter the generation you want to analyze (1-9): '))
     #team = input('Please enter your team! (Teams of 6 or less): ')
@@ -278,10 +287,56 @@ if __name__ == "__main__":
     all_stats = asyncio.run(get_all_pokemon_data(poke_names))
     results = data_builder(all_stats)
     #print(results)
+    '''
     for pokemon_name, pokemon_stat in my_team.items():
-        print(pokemon_name)
-        print(pokemon_stat['Stats'])
         all_poke_graphs =create_stat_graph(results,pokemon_name, pokemon_stat['Stats'])
         for graph_fog in all_poke_graphs:
             plt.show()
-    
+    '''
+app = Dash(__name__)
+
+app.layout = html.Div([
+    dcc.Dropdown(
+        id ='pokemon-dropdown',
+        options=[{'label':name, 'value': name} for name in my_team.keys()],
+        value =list(my_team.keys())[0]
+    ),
+    html.Div(style ={
+        'display': 'flex',
+        'flex-direction':'row',
+        'flex-wrap':'wrap',
+        'justify-content': 'space-between'
+    },
+    children=[
+        dcc.Graph(id ='hp-graph', style ={'width':'33%'}),
+        dcc.Graph(id ='attack-graph', style ={'width':'33%'}),
+        dcc.Graph(id ='defense-graph', style ={'width':'33%'})
+    ]),
+    html.Div(style={
+        'display':'flex',
+        'flex-direction':'row',
+        'flex-wrap':'wrap',
+        'justify-content':'space-between'
+    },
+    children =[
+        dcc.Graph(id ='special-attack-graph',style ={'width':'33%'}),
+        dcc.Graph(id ='special-defense-graph', style ={'width':'33%'}),
+        dcc.Graph(id ='speed-graph', style ={ 'width':'33%'})
+    ])
+])
+@app.callback(
+    Output('hp-graph','figure'),
+    Output('attack-graph','figure'),
+    Output('defense-graph','figure'),
+    Output('special--graph', 'figure'),
+    Output('special-defense-graph', 'figure'),
+    Output('speed-graph','figure'),
+
+    Input('pokemon-dropdown','value')
+)
+def update_stat_graphs(selected_poke_name):
+    pokemon_data = my_team(selected_poke_name)
+
+    all_figures = create_stat_graph(all_stats, selected_poke_name,pokemon_data)
+
+    return(tuple(all_figures))
