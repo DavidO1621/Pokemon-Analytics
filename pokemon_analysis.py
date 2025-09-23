@@ -1,3 +1,4 @@
+
 #task 1 lets extract the data from the api
 import requests
 import argparse
@@ -7,11 +8,10 @@ import aiohttp
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-from dash import Dash
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
-
+import plotly.express as px
+from scipy.stats import norm
 pokemon_cache ={}
 type_cache ={}
 #pokemon info
@@ -28,6 +28,7 @@ def pokemon_api(pokemon_name):
     if response.ok:
         data = response.json()
         pokemon_data ={
+            'ID': data['id'],
             'Name': data['name'],
             'Types': [t["type"]["name"] for t in data["types"]],
             'Stats': {stat['stat']['name']: stat['base_stat'] for stat in data['stats']},
@@ -252,10 +253,48 @@ def create_stat_graph(data,poke_name, poke_stat):
     for stats in categories:
         stat_mean = round(data[stats].mean(),2)
         stat_std = round(data[stats].std(),2)
+        zscore = (poke_stat[stats]- stat_mean)/stat_std
 
-        fig, ax = plt.subplots()
-        sns.histplot(data = data, x= stats, kde = True, color = 'grey')
-
+        percentile = norm.cdf(zscore) *100
+        percentile_str = f"{percentile:.2f}%"
+        fig =px.histogram(
+                    data, 
+                    x= stats, 
+                    color_discrete_sequence = ['grey'], 
+                    title = f"{poke_name}'s {stats}'s Stat Distribution",
+                    labels ={'x': f"Base {stats} Distribution", 'y':f'Frequency'})
+        fig.add_vline(
+             x= stat_mean,
+             line_dash = "solid",
+             line_color ="green",
+             annotation_text = f"Mean: {stat_mean}",
+             annotation_position = 'top',
+             annotation_font_color = 'green'
+        )
+        fig.add_vline(
+            x = poke_stat[stats],
+            line_dash = 'dash',
+            line_color = "blue",
+            annotation_text = f"{poke_name}'s Base {poke_stat} stat ({percentile_str} percentile)",
+            annotation_position = 'top',
+            annotation_font_color ='blue'
+        )
+        fig.add_vline(
+            x = stat_mean - stat_std,
+            line_dash = 'solid',
+            line_color = "purple",
+            annotation_text = f"One standard deviation below (16th Percentile)",
+            annotation_position = 'top',
+            annotation_font_color ='purple'
+        )
+        fig.add_vline(
+            x = stat_mean +stat_std,
+            line_dash = 'solid',
+            line_color = "purple",
+            annotation_text = f"One standard deviation above (84th Percentile)",
+            annotation_position = 'top',
+            annotation_font_color ='purple'
+        )
         plt.axvline(stat_mean + stat_std, color ='black', linestyle ='--', label= f'+1σ: {stat_mean + stat_std}')
         plt.axvline(stat_mean- stat_std, color ='black', linestyle ='--', label = f'-1σ: {stat_mean - stat_std}')
         plt.axvline(stat_mean,color ='green', linestyle='-', label =f'Center (mean): {stat_mean}' )
@@ -268,33 +307,21 @@ def create_stat_graph(data,poke_name, poke_stat):
         plt.legend()
         plt.tight_layout()
         graph_list.append(fig)
-    return(data.describe())
+    return(graph_list)
 
 
 
-if __name__ == "__main__":
-
-
-
-    
-    my_team = team_builder(['blastoise', 'snorlax','charizard','blissey','zapdos','mewtwo'])
-    team_stats = team_analyzer(my_team)
-    
-
-    gen_number = int(input(f'Enter the generation you want to analyze (1-9): '))
-    #team = input('Please enter your team! (Teams of 6 or less): ')
-    poke_names =generation_pokemon(gen_number)
-    all_stats = asyncio.run(get_all_pokemon_data(poke_names))
-    results = data_builder(all_stats)
-    #print(results)
-    '''
-    for pokemon_name, pokemon_stat in my_team.items():
-        all_poke_graphs =create_stat_graph(results,pokemon_name, pokemon_stat['Stats'])
-        for graph_fog in all_poke_graphs:
-            plt.show()
-    '''
 app = Dash(__name__)
+my_team = team_builder(['blastoise', 'snorlax','charizard','blissey','zapdos','mewtwo'])
+team_stats = team_analyzer(my_team)
+    
 
+gen_number =1 # int(input(f'Enter the generation you want to analyze (1-9): '))
+    #team = input('Please enter your team! (Teams of 6 or less): ')
+poke_names =generation_pokemon(gen_number)
+all_stats = asyncio.run(get_all_pokemon_data(poke_names))
+results = data_builder(all_stats)
+#print(results)
 app.layout = html.Div([
     dcc.Dropdown(
         id ='pokemon-dropdown',
@@ -328,15 +355,26 @@ app.layout = html.Div([
     Output('hp-graph','figure'),
     Output('attack-graph','figure'),
     Output('defense-graph','figure'),
-    Output('special--graph', 'figure'),
+    Output('special-attack-graph', 'figure'),
     Output('special-defense-graph', 'figure'),
     Output('speed-graph','figure'),
 
     Input('pokemon-dropdown','value')
 )
 def update_stat_graphs(selected_poke_name):
-    pokemon_data = my_team(selected_poke_name)
+    pokemon_data = my_team[selected_poke_name]
 
-    all_figures = create_stat_graph(all_stats, selected_poke_name,pokemon_data)
+    all_figures = create_stat_graph(results, selected_poke_name,pokemon_data['Stats'])
 
     return(tuple(all_figures))
+
+
+
+if __name__ == "__main__":
+    app.run(debug= True)
+    '''
+    for pokemon_name, pokemon_stat in my_team.items():
+        all_poke_graphs =create_stat_graph(results,pokemon_name, pokemon_stat['Stats'])
+        for graph_fog in all_poke_graphs:
+            plt.show()
+    '''
