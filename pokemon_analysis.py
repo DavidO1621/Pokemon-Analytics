@@ -8,10 +8,11 @@ import aiohttp
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-from dash import Dash, dcc, html
+from dash import Dash, dcc, html, State
 from dash.dependencies import Input, Output
 import plotly.express as px
 from scipy.stats import norm
+import plotly.graph_objects as go
 pokemon_cache ={}
 type_cache ={}
 #pokemon info
@@ -250,6 +251,11 @@ def data_builder(data):
 def create_stat_graph(data,poke_name, poke_stat):
     categories = list(data.columns.values)
     graph_list =[]
+    legend_items =[
+        {'name': 'Mean','color':'green'},
+        {'name': 'One Standard Deviation','color':'purple'},
+        {'name':f"{poke_name}'s Stat",'color':'blue'}
+    ]
     for stats in categories:
         stat_mean = round(data[stats].mean(),2)
         stat_std = round(data[stats].std(),2)
@@ -263,20 +269,22 @@ def create_stat_graph(data,poke_name, poke_stat):
                     color_discrete_sequence = ['grey'], 
                     title = f"{poke_name}'s {stats}'s Stat Distribution",
                     labels ={'x': f"Base {stats} Distribution", 'y':f'Frequency'})
+        fig.update_xaxes(range=[0, None])
+        ''''''
         fig.add_vline(
-             x= stat_mean,
-             line_dash = "solid",
-             line_color ="green",
-             annotation_text = f"Mean: {stat_mean}",
-             annotation_position = 'top',
-             annotation_font_color = 'green'
+            x= stat_mean,
+            line_dash = "solid",
+            line_color ="green",
+            annotation_text = f"Mean: {stat_mean}",
+            annotation_position = 'top',
+            annotation_font_color = 'green'
         )
         fig.add_vline(
             x = poke_stat[stats],
             line_dash = 'dash',
             line_color = "blue",
             annotation_text = f"{poke_name}'s Base {poke_stat} stat ({percentile_str} percentile)",
-            annotation_position = 'top',
+            annotation_position = 'bottom',
             annotation_font_color ='blue'
         )
         fig.add_vline(
@@ -292,28 +300,28 @@ def create_stat_graph(data,poke_name, poke_stat):
             line_dash = 'solid',
             line_color = "purple",
             annotation_text = f"One standard deviation above (84th Percentile)",
-            annotation_position = 'top',
+            annotation_position = 'bottom',
             annotation_font_color ='purple'
         )
-        plt.axvline(stat_mean + stat_std, color ='black', linestyle ='--', label= f'+1σ: {stat_mean + stat_std}')
-        plt.axvline(stat_mean- stat_std, color ='black', linestyle ='--', label = f'-1σ: {stat_mean - stat_std}')
-        plt.axvline(stat_mean,color ='green', linestyle='-', label =f'Center (mean): {stat_mean}' )
-         #lets acces the pokemon's stats so we can place them into the graph
-        pokemon_selected_stat = poke_stat[stats]
-        plt.axvline(pokemon_selected_stat, color='blue', linestyle='-', linewidth =2, label= f"{poke_name}: {pokemon_selected_stat} ")
-        plt.title(f"{poke_name}'s {stats} Stat Distribution")
-        plt.xlabel(f'Base {stats} Stat')
-        plt.ylabel(f'Frequency')
-        plt.legend()
-        plt.tight_layout()
+        fig.update_layout(showlegend = False)
         graph_list.append(fig)
+    if graph_list:
+            first_fig = graph_list[0]
+            for item in legend_items:
+                first_fig.add_trace(go.Scatter(
+                    x =[None],
+                    y= [None],
+                    mode ='lines',
+                    line =dict(color=item['color'],width =2),
+                    name =item['name'])
+                )
+            first_fig.update_layout(showlegend =True)
     return(graph_list)
 
 
 
 app = Dash(__name__)
-my_team = team_builder(['blastoise', 'snorlax','charizard','blissey','zapdos','mewtwo'])
-team_stats = team_analyzer(my_team)
+
     
 
 gen_number =1 # int(input(f'Enter the generation you want to analyze (1-9): '))
@@ -322,16 +330,29 @@ poke_names =generation_pokemon(gen_number)
 all_stats = asyncio.run(get_all_pokemon_data(poke_names))
 results = data_builder(all_stats)
 #print(results)
-app.layout = html.Div([
+app.layout = html.Div(children=[
+    html.H3("Pokemon Team Analyzer"),
+    html.P("Please enter up to six Pokemon:"),
+    html.Div(style={'display': 'flex', 'flex-wrap': 'wrap', 'justify-content': 'center'},
+    children=[
+        dcc.Input(id ='poke-input1', type ='text', placeholder= 'Pokemon 1', style ={'margin':'5px'}),
+        dcc.Input(id = 'poke-input2', type ='text', placeholder ='Pokemon 2', style ={'margin': '5px'}),
+        dcc.Input(id ='poke-input3', type = 'text', placeholder = 'Pokemon 3', style ={'margin': '5px'}),
+        dcc.Input(id = 'poke-input4', type ='text',placeholder = 'Pokemon 4', style ={'margin':'5px'}),
+        dcc.Input(id = 'poke-input5', type = 'text', placeholder ='Pokemon 5', style ={'margin':'5px'}),
+        dcc.Input(id ='poke-input6', type = 'text', placeholder = 'Pokemon 6', style ={'margin':'5px'}),
+    ]),
+    html.Button('Set Team', id = 'set-team-button', n_clicks = 0, style ={'margin':'10px'}),
+    html.Div(id = 'result-output'),
+    
+    # All components below need to be inside the main Div
     dcc.Dropdown(
         id ='pokemon-dropdown',
-        options=[{'label':name, 'value': name} for name in my_team.keys()],
-        value =list(my_team.keys())[0]
+        options =[], value =None
     ),
+    dcc.Store(id ='team-data-store'),
     html.Div(style ={
-        'display': 'flex',
-        'flex-direction':'row',
-        'flex-wrap':'wrap',
+        'display': 'flex', 'flex-direction':'row', 'flex-wrap':'wrap',
         'justify-content': 'space-between'
     },
     children=[
@@ -340,9 +361,7 @@ app.layout = html.Div([
         dcc.Graph(id ='defense-graph', style ={'width':'33%'})
     ]),
     html.Div(style={
-        'display':'flex',
-        'flex-direction':'row',
-        'flex-wrap':'wrap',
+        'display':'flex', 'flex-direction':'row', 'flex-wrap':'wrap',
         'justify-content':'space-between'
     },
     children =[
@@ -350,7 +369,28 @@ app.layout = html.Div([
         dcc.Graph(id ='special-defense-graph', style ={'width':'33%'}),
         dcc.Graph(id ='speed-graph', style ={ 'width':'33%'})
     ])
+
 ])
+@app.callback(
+    Output('pokemon-dropdown', 'options'),
+    Output('team-data-store','data'),
+    Output('result-output','children'),
+    Input('set-team-button','n_clicks'),
+    State('poke-input1','value'),
+    State('poke-input2','value'),
+    State('poke-input3','value'),
+    State('poke-input4','value'),
+    State('poke-input5','value'),
+    State('poke-input6','value'),
+)
+def update_team(n_clicks, poke1, poke2,poke3, poke4, poke5, poke6):
+    if n_clicks >0:
+        input_names = [name for name in[poke1, poke2,poke3, poke4,poke5,poke6] if name]
+        user_team = team_builder(input_names)
+
+        new_options =[{'label': name, 'value': name} for name in input_names]
+        return(new_options, user_team, f"Team updated to {', '.join(input_names)}")
+    return[],{}, "Enter your team and click 'Set Team"
 @app.callback(
     Output('hp-graph','figure'),
     Output('attack-graph','figure'),
@@ -359,9 +399,19 @@ app.layout = html.Div([
     Output('special-defense-graph', 'figure'),
     Output('speed-graph','figure'),
 
-    Input('pokemon-dropdown','value')
+    Input('pokemon-dropdown','value'),
+    State('team-data-store','data')
 )
-def update_stat_graphs(selected_poke_name):
+def update_stat_graphs(selected_poke_name, my_team):
+    if not selected_poke_name or not my_team:
+        return(
+            px.histogram(pd.DataFrame()),
+            px.histogram(pd.DataFrame()),
+            px.histogram(pd.DataFrame()),
+            px.histogram(pd.DataFrame()),
+            px.histogram(pd.DataFrame()),
+            px.histogram(pd.DataFrame())
+        )
     pokemon_data = my_team[selected_poke_name]
 
     all_figures = create_stat_graph(results, selected_poke_name,pokemon_data['Stats'])
