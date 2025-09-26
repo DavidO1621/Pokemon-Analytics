@@ -332,7 +332,7 @@ results = data_builder(all_stats)
 #print(results)
 app.layout = html.Div(children=[
     html.H3("Pokemon Team Analyzer"),
-    html.P("Please enter up to six Pokemon:"),
+    html.P("Please enter up to six Pokemon. Once ready, please click 'Set Team':"),
     html.Div(style={'display': 'flex', 'flex-wrap': 'wrap', 'justify-content': 'center'},
     children=[
         dcc.Input(id ='poke-input1', type ='text', placeholder= 'Pokemon 1', style ={'margin':'5px'}),
@@ -342,10 +342,20 @@ app.layout = html.Div(children=[
         dcc.Input(id = 'poke-input5', type = 'text', placeholder ='Pokemon 5', style ={'margin':'5px'}),
         dcc.Input(id ='poke-input6', type = 'text', placeholder = 'Pokemon 6', style ={'margin':'5px'}),
     ]),
+
     html.Button('Set Team', id = 'set-team-button', n_clicks = 0, style ={'margin':'10px'}),
     html.Div(id = 'result-output'),
-    
+    html.P('Please choose a generation to analyze your team with:'),
     # All components below need to be inside the main Div
+    dcc.Dropdown(
+        id ='generation_number',
+        options =[
+            {'label':f'Generation {i}', 'value':i,} for i in range(1,10)
+        ],
+        value = 1
+
+    ),
+    dcc.Store(id ='current-generation-store'),
     dcc.Dropdown(
         id ='pokemon-dropdown',
         options =[], value =None
@@ -390,7 +400,7 @@ def update_team(n_clicks, poke1, poke2,poke3, poke4, poke5, poke6):
 
         new_options =[{'label': name, 'value': name} for name in input_names]
         return(new_options, user_team, f"Team updated to {', '.join(input_names)}")
-    return[],{}, "Enter your team and click 'Set Team"
+    return[],{}
 @app.callback(
     Output('hp-graph','figure'),
     Output('attack-graph','figure'),
@@ -398,9 +408,9 @@ def update_team(n_clicks, poke1, poke2,poke3, poke4, poke5, poke6):
     Output('special-attack-graph', 'figure'),
     Output('special-defense-graph', 'figure'),
     Output('speed-graph','figure'),
-
     Input('pokemon-dropdown','value'),
-    State('team-data-store','data')
+    State('team-data-store','data'),
+    
 )
 def update_stat_graphs(selected_poke_name, my_team):
     if not selected_poke_name or not my_team:
@@ -418,7 +428,16 @@ def update_stat_graphs(selected_poke_name, my_team):
 
     return(tuple(all_figures))
 
+@app.callback(
+    Output('current-generation-store','data'),
+    Input('generation_number', 'value'),
 
+)
+def update_population(gen_number):
+    pop_names = generation_pokemon(gen_number)
+    pop_stats = asyncio.run(get_all_pokemon_data(pop_names))
+    results = data_builder(pop_stats)
+    return(results.to_dict('list'))
 
 if __name__ == "__main__":
     app.run(debug= True)
