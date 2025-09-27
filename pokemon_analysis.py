@@ -323,13 +323,14 @@ def create_stat_graph(data,poke_name, poke_stat):
 app = Dash(__name__)
 
     
-
+'''
 gen_number =1 # int(input(f'Enter the generation you want to analyze (1-9): '))
     #team = input('Please enter your team! (Teams of 6 or less): ')
 poke_names =generation_pokemon(gen_number)
 all_stats = asyncio.run(get_all_pokemon_data(poke_names))
 results = data_builder(all_stats)
 #print(results)
+'''
 app.layout = html.Div(children=[
     html.H3("Pokemon Team Analyzer"),
     html.P("Please enter up to six Pokemon. Once ready, please click 'Set Team':"),
@@ -400,7 +401,7 @@ def update_team(n_clicks, poke1, poke2,poke3, poke4, poke5, poke6):
 
         new_options =[{'label': name, 'value': name} for name in input_names]
         return(new_options, user_team, f"Team updated to {', '.join(input_names)}")
-    return[],{}
+    return[],{}, "Team is ready for analysis"
 @app.callback(
     Output('hp-graph','figure'),
     Output('attack-graph','figure'),
@@ -409,10 +410,11 @@ def update_team(n_clicks, poke1, poke2,poke3, poke4, poke5, poke6):
     Output('special-defense-graph', 'figure'),
     Output('speed-graph','figure'),
     Input('pokemon-dropdown','value'),
-    State('team-data-store','data'),
+    Input('team-data-store','data'),
+    Input('current-generation-store','data'),
     
 )
-def update_stat_graphs(selected_poke_name, my_team):
+def update_stat_graphs(selected_poke_name,my_team, gen_num):
     if not selected_poke_name or not my_team:
         return(
             px.histogram(pd.DataFrame()),
@@ -423,8 +425,8 @@ def update_stat_graphs(selected_poke_name, my_team):
             px.histogram(pd.DataFrame())
         )
     pokemon_data = my_team[selected_poke_name]
-
-    all_figures = create_stat_graph(results, selected_poke_name,pokemon_data['Stats'])
+    gen_df = pd.DataFrame(gen_num)
+    all_figures = create_stat_graph(gen_df, selected_poke_name,pokemon_data['Stats'])
 
     return(tuple(all_figures))
 
