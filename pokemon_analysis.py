@@ -20,7 +20,37 @@ pokemon_api_base = 'https://pokeapi.co/api/v2/pokemon/'
 type_api_url ='https://pokeapi.co/api/v2/type/'
     
 #okay so lets 
+TYPE_COLORS ={
+    'normal': '#A8A77A',
+    'fire': '#EE8130',
+    'water': '#6390F0',
+    'electric':'#F7D02C',
+    'grass':'#7AC74C',
+    'ice':'#96D9D6',
+    'fighting':'#C22E28',
+    'poison':'#A33EA1',
+    'ground':'#E2BF65',
+    'flying':'#A98FF3',
+    'psychic':'#F95587',
+    'bug':'#A6B91A',
+    'rock':'#B6A136',
+    'ghost':'#735797',
+    'dragon':'#6F35FC',
+    'dark':'#705746',
+    'steel':'#B7B7CE',
+    'fairy':'#D685AD'
+}
+def create_type_badge(type_name):
+    color = TYPE_COLORS.get(type_name.lower(), '#777777')
 
+    return(
+        html.Div(
+            type_name.capitalize(),
+            style={
+                'backgroundcolor':col
+            }
+        )
+    )
 def pokemon_api(pokemon_name):
     name = pokemon_name.lower()
     if name in pokemon_cache: #checks to see if the pokemon isnt already listed, if so just return w/o running api
@@ -402,6 +432,7 @@ app.layout = html.Div(children=[
     Output('pokemon-dropdown', 'options'),
     Output('team-data-store','data'),
     Output('result-output','children'),
+    Output('team-analysis-store','data'),
     Input('set-team-button','n_clicks'),
     State('poke-input1','value'),
     State('poke-input2','value'),
@@ -414,9 +445,12 @@ def update_team(n_clicks, poke1, poke2,poke3, poke4, poke5, poke6):
     if n_clicks >0:
         input_names = [name for name in[poke1, poke2,poke3, poke4,poke5,poke6] if name]
         user_team = team_builder(input_names)
-
+        team_info = team_analyzer(user_team)
         new_options =[{'label': name, 'value': name} for name in input_names]
-        return(new_options, user_team, f"Team updated to {', '.join(input_names)}")
+        return(new_options,
+               user_team, 
+               f"Team updated to {', '.join(input_names)}", 
+               {k:dict(v) if isinstance(v, Counter) else v for k, v in team_info.items()})
     return[],{}, "Team is ready for analysis"
 @app.callback(
     Output('hp-graph','figure'),
