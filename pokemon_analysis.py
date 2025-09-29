@@ -194,7 +194,7 @@ def team_analyzer(team):
 async def get_all_pokemon_data(pokemon_names):
     async with aiohttp.ClientSession() as session:
         #lets break the list of pokemon names we get and feed it intot the other function one at a time
-        tasks = [get_pokemon_stats(session, name) for name in poke_names]
+        tasks = [get_pokemon_stats(session, name) for name in pokemon_names]
 
         pokemon_data_list = await asyncio.gather(*tasks)
         return(pokemon_data_list)
@@ -332,8 +332,17 @@ results = data_builder(all_stats)
 #print(results)
 '''
 app.layout = html.Div(children=[
-    html.H3("Pokemon Team Analyzer"),
-    html.P("Please enter up to six Pokemon. Once ready, please click 'Set Team':"),
+    html.H1("Pokemon Team Analyzer",
+            style ={
+                'textAlign':'center',
+                'fontSize': '2.5em'
+            }),
+    html.P("Welcome to the Pokémon Team Analyzer. Build your perfect team and instantly receive a comprehensive strategic breakdown, including type coverage analysis and individual Pokémon stat distributions relative to any generation!"),
+    html.P("Gain a strategic edge with individual stat distribution charts. For any selected Pokémon, you can instantly see its base stats compared against the chosen generation's mean and standard deviation, allowing you to quickly assess its competitive viability and rank (percentile) within that population."),
+    html.P("Please enter up to six Pokemon. Once ready, please click 'Set Team':",
+           style ={
+               'font-weight':'bold'
+           }),
     html.Div(style={'display': 'flex', 'flex-wrap': 'wrap', 'justify-content': 'center'},
     children=[
         dcc.Input(id ='poke-input1', type ='text', placeholder= 'Pokemon 1', style ={'margin':'5px'}),
@@ -346,7 +355,10 @@ app.layout = html.Div(children=[
 
     html.Button('Set Team', id = 'set-team-button', n_clicks = 0, style ={'margin':'10px'}),
     html.Div(id = 'result-output'),
-    html.P('Please choose a generation to analyze your team with:'),
+    html.P('Please choose a generation to analyze your team with:',
+           style={
+               'font-weight':'bold'
+           }),
     # All components below need to be inside the main Div
     dcc.Dropdown(
         id ='generation_number',
@@ -357,6 +369,10 @@ app.layout = html.Div(children=[
 
     ),
     dcc.Store(id ='current-generation-store'),
+    html.P("Please choose a pokemon from your set team for insight!",
+           style={
+               'font-weight':'bold'
+           }),
     dcc.Dropdown(
         id ='pokemon-dropdown',
         options =[], value =None
@@ -415,7 +431,7 @@ def update_team(n_clicks, poke1, poke2,poke3, poke4, poke5, poke6):
     
 )
 def update_stat_graphs(selected_poke_name,my_team, gen_num):
-    if not selected_poke_name or not my_team:
+    if not selected_poke_name or not my_team or not gen_num:
         return(
             px.histogram(pd.DataFrame()),
             px.histogram(pd.DataFrame()),
