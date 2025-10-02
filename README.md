@@ -18,7 +18,7 @@ Rigorous Modeling: Established the analytical core by performing complex descrip
 Actionable Metrics: Leveraged SciPy-driven Z-score analysis to accurately benchmark individual Pokémon stats. This calculation provides users with an actionable percentile rank, objectively quantifying performance against chosen historical cohorts (Generations), which can be interpreted as a time-series analysis of stat growth trends.
 
 3. Decision-Support Aggregation
-Categorical Risk Assessment: Implemented a sophisticated categorical aggregation model using collections. Counter to track and quantify cumulative damage multipliers across the entire team.
+Categorical Risk Assessment: Implemented a sophisticated categorical aggregation model using collections.Counter to track and quantify cumulative damage multipliers across the entire team.
 
 Strategic Flags: The model flags "critical shared weaknesses" (instances where 3 or more team members share a vulnerability), providing an immediate, high-impact decision-support metric for team revision.
 
@@ -28,46 +28,3 @@ Real-Time Benchmarking: Provides percentile ranking for all six base stats, reve
 Interactive Visualization: Deployed as a full-stack Dash application featuring high-fidelity Plotly charts that visualize statistical distributions.
 
 Optimized UX: Custom non-overlapping annotation logic was implemented on histograms (using precise yref coordinates) to ensure 100% clarity and accurate interpretation of multiple statistical overlays (μ, ±σ, and percentile).
-
-Technology Stack
-Category
-
-Tool
-
-Function
-
-Backend & Modeling
-
-Python
-
-Core logic, statistical processing, and server-side execution.
-
-Data Structure
-
-Pandas
-
-Data structuring, cleaning, and statistical calculations.
-
-Statistical Engine
-
-SciPy
-
-Z-score and Normal CDF (Percentile) calculations.
-
-Data Ingestion
-
-aiohttp
-
-Asynchronous, high-performance API calls.
-
-Frontend/Deployment
-
-Dash
-
-Full-stack application framework for web deployment.
-
-Visualization
-
-Plotly
-
-Creation of interactive, data-rich histograms.
