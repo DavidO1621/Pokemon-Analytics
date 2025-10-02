@@ -1,0 +1,2 @@
+Welcome to my Pokémon Team Analyzer Web App.
+The user will be able to provide a team of up to 6 Pokémon, and they will receive insight about their team. Type coverage, including overall types and type weaknesses, will be displayed. The user will also receive graphs for each Pokémon on their team and see where the Pokémon's respective stat (HP, attack, special-attack, defense, special-defense, and speed) lies at in comparison
