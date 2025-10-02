@@ -1,4 +1,3 @@
-Pokémon Team Analyzer: A Data-Driven Decision Support System
 This project is a full-stack analytical application designed to mitigate strategic risk in competitive team building. It transforms raw, external API data into actionable, quantitative insights, demonstrating end-to-end proficiency in data engineering, statistical modeling, and interactive visualization.
 
 Project Overview
