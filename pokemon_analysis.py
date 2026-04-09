@@ -19,7 +19,6 @@ type_cache ={}
 pokemon_api_base = 'https://pokeapi.co/api/v2/pokemon/'
 type_api_url ='https://pokeapi.co/api/v2/type/'
     
-#okay so lets 
 TYPE_COLORS ={
     'normal': '#A8A77A',
     'fire': '#EE8130',
@@ -85,17 +84,17 @@ def pokemon_api(pokemon_name):
         print(f"The status code is {response.status_code}")
         return(None)
     
-def get_type_data(input):
-    type = input.lower()
-    if type in type_cache:
-        return(type_cache[type])
-    
-    response = requests.get(type_api_url + type)
+def get_type_data(type_name):
+    poke_type = type_name.lower()
+    if poke_type in type_cache:
+        return(type_cache[poke_type])
+
+    response = requests.get(type_api_url + poke_type)
     if not response.ok:
         print(f"Type is wrong! Please check input")
         return(None)
     data = response.json()
-    type_cache[type]= data
+    type_cache[poke_type]= data
 
     return(data)
 
@@ -106,8 +105,8 @@ def type_analysis(pokemon):
     poke_data['Resistance']=[]
     poke_data['Immunity']=[]
     poke_data['No_effect_on']=[]
-    for type in poke_data['Types']:
-        data = get_type_data(type)
+    for poke_type in poke_data['Types']:
+        data = get_type_data(poke_type)
 
         data_relations = data.get('damage_relations',{})
         #weaknesses
@@ -158,8 +157,8 @@ def type_calculator(pokemon):
     }
 
     for category, factor in effects.items():
-        for type in poke_data[category]:
-            poke_data['Damage_Multiplier'][type]*=factor
+        for poke_type in poke_data[category]:
+            poke_data['Damage_Multiplier'][poke_type]*=factor
 
     #print(data)
     
@@ -440,7 +439,34 @@ app.layout = html.Div(children=[
         dcc.Graph(id='special-attack-graph', className='w-full lg:w-1/3 p-2'),
         dcc.Graph(id='special-defense-graph', className='w-full lg:w-1/3 p-2'),
         dcc.Graph(id='speed-graph', className='w-full lg:w-1/3 p-2')
-    ])
+    ]),
+
+    html.H2("Team Stat Radar Chart",
+            className="text-3xl font-bold text-center text-blue-700 mt-8 mb-4 border-b-2 border-blue-300 pb-2"),
+    html.Div(className="bg-white p-6 rounded-xl shadow-lg mb-8", children=[
+        html.P("Overlay all team members' base stats on a single radar chart for a direct comparison.",
+               className="font-bold text-lg text-blue-600 mb-2"),
+        dcc.Graph(id='team-radar-chart'),
+    ]),
+
+    html.H2("Generation Stat Correlation Heatmap",
+            className="text-3xl font-bold text-center text-blue-700 mt-8 mb-4 border-b-2 border-blue-300 pb-2"),
+    html.Div(className="bg-white p-6 rounded-xl shadow-lg mb-8", children=[
+        html.P("Pearson correlation between all six base stats across the selected generation's Pokémon.",
+               className="font-bold text-lg text-blue-600 mb-2"),
+        dcc.Graph(id='stat-correlation-heatmap'),
+    ]),
+
+    html.Div(className="bg-white p-6 rounded-xl shadow-lg mb-8 text-center", children=[
+        html.Button(
+            'Download Team Analysis as CSV',
+            id='download-csv-button',
+            n_clicks=0,
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow",
+            style={'margin': '10px'}
+        ),
+        dcc.Download(id='download-team-csv'),
+    ]),
 ])
 
 @app.callback(
@@ -584,11 +610,122 @@ def update_population(gen_number):
     results = data_builder(pop_stats)
     return(results.to_dict('list'))
 
+@app.callback(
+    Output('team-radar-chart', 'figure'),
+    Input('team-data-store', 'data'),
+    prevent_initial_call=True
+)
+def update_team_radar(team_data):
+    stat_order = ['hp', 'attack', 'defense', 'special-attack', 'special-defense', 'speed']
+    stat_labels = ['HP', 'Attack', 'Defense', 'Sp. Atk', 'Sp. Def', 'Speed']
+
+    if not team_data:
+        fig = go.Figure()
+        fig.update_layout(title="Enter a team above to see the radar chart.")
+        return fig
+
+    fig = go.Figure()
+    for poke_name, poke_info in team_data.items():
+        stats = poke_info.get('Stats', {})
+        values = [stats.get(s, 0) for s in stat_order]
+        values_closed = values + [values[0]]
+        labels_closed = stat_labels + [stat_labels[0]]
+        fig.add_trace(go.Scatterpolar(
+            r=values_closed,
+            theta=labels_closed,
+            fill='toself',
+            name=poke_name.capitalize(),
+            opacity=0.6
+        ))
+
+    fig.update_layout(
+        polar=dict(radialaxis=dict(visible=True, range=[0, 255])),
+        showlegend=True,
+        title="Team Stat Overlay — Radar Chart",
+        font=dict(family='Inter, sans-serif')
+    )
+    return fig
+
+
+@app.callback(
+    Output('stat-correlation-heatmap', 'figure'),
+    Input('current-generation-store', 'data'),
+    prevent_initial_call=True
+)
+def update_correlation_heatmap(gen_pop_data):
+    if not gen_pop_data:
+        fig = go.Figure()
+        fig.update_layout(title="Select a generation above to see the correlation heatmap.")
+        return fig
+
+    gen_df = pd.DataFrame(gen_pop_data)
+    corr = gen_df.corr(numeric_only=True).round(2)
+
+    readable_labels = {
+        'hp': 'HP',
+        'attack': 'Attack',
+        'defense': 'Defense',
+        'special-attack': 'Sp. Atk',
+        'special-defense': 'Sp. Def',
+        'speed': 'Speed'
+    }
+    axis_labels = [readable_labels.get(c, c) for c in corr.columns]
+
+    fig = go.Figure(data=go.Heatmap(
+        z=corr.values,
+        x=axis_labels,
+        y=axis_labels,
+        colorscale='RdBu',
+        zmid=0,
+        text=corr.values,
+        texttemplate='%{text}',
+        showscale=True
+    ))
+    fig.update_layout(
+        title="Base Stat Pearson Correlations (Selected Generation)",
+        font=dict(family='Inter, sans-serif'),
+        margin=dict(t=60, b=40)
+    )
+    return fig
+
+
+@app.callback(
+    Output('download-team-csv', 'data'),
+    Input('download-csv-button', 'n_clicks'),
+    State('team-data-store', 'data'),
+    State('team-analysis-store', 'data'),
+    prevent_initial_call=True
+)
+def download_team_csv(n_clicks, team_data, team_analysis_data):
+    if not n_clicks or not team_data:
+        return None
+
+    rows = []
+    for poke_name, poke_info in team_data.items():
+        stats = poke_info.get('Stats', {})
+        roles = team_analysis_data.get('roles', {}) if team_analysis_data else {}
+        role_entry = roles.get(poke_name, ('Unknown', 0))
+        role_name = role_entry[0] if isinstance(role_entry, (list, tuple)) else str(role_entry)
+
+        row = {
+            'Name': poke_name.capitalize(),
+            'Types': ' / '.join(poke_info.get('Types', [])),
+            'Role': role_name,
+            'HP': stats.get('hp', ''),
+            'Attack': stats.get('attack', ''),
+            'Defense': stats.get('defense', ''),
+            'Sp. Atk': stats.get('special-attack', ''),
+            'Sp. Def': stats.get('special-defense', ''),
+            'Speed': stats.get('speed', ''),
+            'Weaknesses': ' / '.join(poke_info.get('Weaknesses', [])),
+            'Resistances': ' / '.join(poke_info.get('Resistance', [])),
+            'Immunities': ' / '.join(poke_info.get('Immunity', [])),
+        }
+        rows.append(row)
+
+    df = pd.DataFrame(rows)
+    return dcc.send_data_frame(df.to_csv, "team_analysis.csv", index=False)
+
+
 if __name__ == "__main__":
-    app.run(debug= True)
-    '''
-    for pokemon_name, pokemon_stat in my_team.items():
-        all_poke_graphs =create_stat_graph(results,pokemon_name, pokemon_stat['Stats'])
-        for graph_fog in all_poke_graphs:
-            plt.show()
-    '''
+    app.run(debug=True)
